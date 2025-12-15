@@ -29,12 +29,14 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     
-    CORS_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
+    CORS_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:4200", "http://127.0.0.1:4200"]
     
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     
-    UPLOAD_FOLDER = os.path.join(os.getcwd(), 'app', 'static', 'uploads')
+    # Use path relative to the backend directory, not CWD
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'app', 'static', 'uploads')
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB max upload size
 
 

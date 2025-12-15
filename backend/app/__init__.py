@@ -112,7 +112,7 @@ def create_app(config_name: str = None) -> Flask:
     mongo.init_app(app)
     
     CORS(app, 
-         origins=config.CORS_ORIGINS,
+         resources={r"/*": {"origins": "*"}},
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
          allow_headers=['Content-Type', 'Authorization'],
          supports_credentials=True)
@@ -160,6 +160,9 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
     app.register_blueprint(student_profile_bp, url_prefix='/api/student')
     app.register_blueprint(teachers_bp, url_prefix='/api/teachers')
+    
+    from app.routes.courses import courses_bp
+    app.register_blueprint(courses_bp, url_prefix='/api/courses')
     
     app.logger.info("Blueprints registered successfully")
 

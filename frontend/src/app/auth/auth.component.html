@@ -1,0 +1,145 @@
+<div class="screen active" style="display: flex;">
+    <div class="auth-container">
+        <div class="auth-card glass-card">
+            <!-- Back to Home Link -->
+            <a routerLink="/" class="back-home-link">
+                <i class="fas fa-arrow-left"></i>
+                <span>Back to Home</span>
+            </a>
+
+            <div class="auth-header">
+                <div class="auth-logo">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>Student Management System</span>
+                </div>
+            </div>
+
+            <!-- Login Form -->
+            <form *ngIf="isLoginMode" (ngSubmit)="onLogin()" class="auth-form active">
+                <h2>Welcome Back</h2>
+                <p class="auth-subtitle">Sign in to your account</p>
+
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" [(ngModel)]="loginData.username" name="username"
+                        placeholder="Enter your username" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" [(ngModel)]="loginData.password" name="password"
+                        placeholder="Enter your password" required>
+                </div>
+
+                <button type="submit" class="btn-primary btn-block" [disabled]="isLoading">
+                    <span>{{ isLoading ? 'Signing In...' : 'Sign In' }}</span>
+                    <i class="fas fa-arrow-right" *ngIf="!isLoading"></i>
+                </button>
+
+                <div class="auth-footer">
+                    <p style="margin-top: 1rem; color: var(--text-secondary);">
+                        Don't have an account? <a (click)="toggleMode()" class="text-link" style="cursor: pointer;">Sign
+                            up</a>
+                    </p>
+                </div>
+            </form>
+
+            <!-- Register Form -->
+            <form *ngIf="!isLoginMode" (ngSubmit)="onRegister()" class="auth-form active">
+                <h2>Create Account</h2>
+                <p class="auth-subtitle">Join us today</p>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" [(ngModel)]="registerData.username" name="regUser" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" [(ngModel)]="registerData.email" name="email" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" [(ngModel)]="registerData.password" name="regPass" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" [(ngModel)]="registerData.full_name" name="fullName" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Role</label>
+                    <select [(ngModel)]="registerData.role" name="role" required>
+                        <option value="">Select role</option>
+                        <option value="student">Student</option>
+                        <option value="teacher">Teacher</option>
+                        <!-- Admin removed -->
+                    </select>
+                </div>
+
+                <div *ngIf="registerData.role === 'teacher'">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Teacher ID</label>
+                            <input type="text" [(ngModel)]="registerData.teacher_id" name="teacherId"
+                                placeholder="e.g., T001" pattern="^T[0-9]{3}$"
+                                title="Format: T followed by 3 digits (e.g., T001)" required>
+                            <small class="input-hint">Format: T001, T002, T003...</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Subject</label>
+                            <select [(ngModel)]="registerData.subject" name="subject" required>
+                                <option value="">Select Subject</option>
+                                <option value="Mathematics">Mathematics</option>
+                                <option value="Science">Science</option>
+                                <option value="English">English</option>
+                                <option value="History">History</option>
+                                <option value="Computer Science">Computer Science</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div *ngIf="registerData.role === 'student'">
+                    <div class="form-group">
+                        <label>Student ID</label>
+                        <input type="text" [(ngModel)]="registerData.student_id" name="studentId"
+                            placeholder="e.g., S001" pattern="^S[0-9]{3}$"
+                            title="Format: S followed by 3 digits (e.g., S001)" required>
+                        <small class="input-hint">Format: S001, S002, S003...</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Select Courses (Max 5)</label>
+                        <div class="course-list-scroll">
+                            <div *ngFor="let course of availableCourses" class="checkbox-item">
+                                <input type="checkbox" [checked]="registerData.courses.includes(course.course_id)"
+                                    (change)="toggleCourse(course.course_id)" [id]="course.course_id">
+                                <label [for]="course.course_id">
+                                    {{course.name}} ({{course.credits}} credits)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary btn-block" [disabled]="isLoading">
+                    <span>{{ isLoading ? 'Creating...' : 'Create Account' }}</span>
+                    <i class="fas fa-user-plus" *ngIf="!isLoading"></i>
+                </button>
+
+                <div class="auth-footer">
+                    <p style="color: var(--text-secondary);">
+                        Already have an account? <a (click)="toggleMode()" class="text-link"
+                            style="cursor: pointer;">Sign in</a>
+                    </p>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>

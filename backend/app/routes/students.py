@@ -169,9 +169,52 @@ def get_all_students():
     
     limit = int(request.args.get('limit', 100))
     skip = int(request.args.get('skip', 0))
+
+    # TEACHER FILTER LOGIC
+    current_user_id = get_jwt_identity()
+    # Check if user is a teacher (we need to look up their role, or trust the frontend/token claim)
+    # Better to look up the user or trust claims if added. Let's look up to be safe or use role if in token.
+    claims = get_jwt()
+    if claims.get('role') == 'teacher':
+        # Find teacher profile
+        # Teacher ID is usually the username/identity in this system based on auth.py lines
+        teacher = mongo.db.teachers.find_one({'teacher_id': claims.get('sub')}) # sub is usually identity (username)
+        # However, identity might be ObjectId depending on how login is implemented. 
+        # Checking auth.py: identity=str(user['_id']) in login.
+        # But Teacher creation uses teacher_id as username.
+        # Let's find the user first to get their username/teacher_id string if needed, or query teachers by user_id linkage if it exists.
+        
+        # Actually, in teachers.py create_teacher: user['username'] = data['teacher_id'].
+        # And auth.py login uses identity=str(user['_id']).
+        # So we need to find the User to get the teacher_id (which is the username).
+        user = mongo.db.users.find_one({'_id': ObjectId(current_user_id)})
+        if user and user.get('role') == 'teacher':
+             teacher_profile = mongo.db.teachers.find_one({'teacher_id': user['username']})
+             if teacher_profile and 'subject' in teacher_profile:
+                 teaching_subject = teacher_profile['subject']
+                 # Filter students who have this subject in enrolled_subjects
+                 query['enrolled_subjects'] = teaching_subject
     
     students_cursor = mongo.db.students.find(query).skip(skip).limit(limit)
-    students = [serialize_student(s) for s in students_cursor]
+    students_list = list(students_cursor)
+    
+    # Calculate final_grade for each student based on their enrollment marks
+    students = []
+    for student in students_list:
+        enrollments = list(mongo.db.enrollments.find({'student_id': student['student_id']}))
+        graded_enrollments = [e for e in enrollments if e.get('marks') is not None]
+        
+        if graded_enrollments:
+            total_marks = sum(e['marks'] for e in graded_enrollments)
+            calculated_final_grade = round(total_marks / len(graded_enrollments), 2)
+        else:
+            calculated_final_grade = 0
+        
+        student_data = serialize_student(student)
+        student_data['final_grade'] = calculated_final_grade
+        student_data['total_courses'] = len(enrollments)
+        student_data['graded_courses'] = len(graded_enrollments)
+        students.append(student_data)
     
     total_count = mongo.db.students.count_documents(query)
     
@@ -180,7 +223,8 @@ def get_all_students():
         'total': total_count,
         'count': len(students),
         'skip': skip,
-        'limit': limit
+        'limit': limit,
+        'filter_subject': query.get('enrolled_subjects') # Return debug info
     }), 200
 
 
@@ -215,8 +259,28 @@ def get_student(student_id):
             'message': f'Student with ID {student_id} not found'
         }), 404
     
+    # Calculate final_grade as average of all course marks
+    enrollments = list(mongo.db.enrollments.find({'student_id': student_id}))
+    
+    # Filter enrollments that have marks (not None/null)
+    graded_enrollments = [e for e in enrollments if e.get('marks') is not None]
+    
+    if graded_enrollments:
+        # Calculate average
+        total_marks = sum(e['marks'] for e in graded_enrollments)
+        calculated_final_grade = round(total_marks / len(graded_enrollments), 2)
+    else:
+        # No grades yet, use 0 or keep original
+        calculated_final_grade = 0
+    
+    # Serialize student and override final_grade with calculated value
+    student_data = serialize_student(student)
+    student_data['final_grade'] = calculated_final_grade
+    student_data['total_courses'] = len(enrollments)
+    student_data['graded_courses'] = len(graded_enrollments)
+    
     return jsonify({
-        'student': serialize_student(student)
+        'student': student_data
     }), 200
 
 
@@ -387,3 +451,33 @@ def predict_performance(student_id):
     return jsonify({
         'prediction': prediction
     }), 200
+
+@students_bp.route('/<student_id>/grades', methods=['GET'])
+@jwt_required()
+@handle_exceptions
+def get_student_grades(student_id):
+    """
+    Get grades/enrollments for a student.
+    """
+    # Check if student exists
+    if not mongo.db.students.find_one({'student_id': student_id}):
+        return jsonify({'error': 'Student not found'}), 404
+
+    # Get enrollments
+    enrollments = list(mongo.db.enrollments.find({'student_id': student_id}))
+    
+    grades = []
+    for enrollment in enrollments:
+        # Get course details for teacher name
+        course = mongo.db.courses.find_one({'course_id': enrollment['course_id']})
+        
+        grades.append({
+            'course_id': enrollment['course_id'],
+            'course_name': enrollment.get('course_name', course.get('name') if course else 'Unknown'),
+            'teacher_id': enrollment.get('teacher_id'),
+            'teacher_name': course.get('teacher_name') if course else 'Unknown',
+            'marks': enrollment.get('marks'),
+            'enrolled_at': enrollment.get('enrolled_at')
+        })
+        
+    return jsonify({'grades': grades}), 200

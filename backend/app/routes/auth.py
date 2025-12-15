@@ -101,7 +101,20 @@ def register():
             'message': 'student_id is required for student role'
         }), 400
     
+    # If role is teacher, ensure subject is provided (frontend should send it)
+    # Block admin registration
+    if validated_data['role'] == 'admin':
+         return jsonify({
+            'error': 'Forbidden',
+            'message': 'Admin registration is restricted'
+        }), 403
+
     hashed_pwd = hash_password(validated_data['password'])
+    
+    # Default approval status
+    is_approved = True
+    if validated_data['role'] == 'teacher':
+        is_approved = False  # Teachers need approval
     
     user_doc = {
         'username': validated_data['username'],
@@ -111,7 +124,9 @@ def register():
         'full_name': data.get('full_name', ''),
         'created_at': datetime.utcnow(),
         'updated_at': datetime.utcnow(),
-        'is_active': True
+        'is_active': True,
+        'is_approved': is_approved, # New flag
+        'cv_url': None # New field for CV
     }
     
     if 'student_id' in data:
@@ -143,15 +158,39 @@ def register():
         }
         mongo.db.students.insert_one(student_doc)
 
+        # Handle course enrollments (if provided)
+        courses_to_enroll = data.get('courses', [])
+        if courses_to_enroll:
+            if len(courses_to_enroll) > 5:
+                # This should ideally be caught before user creation, but for now we limit to first 5 or error.
+                # Since user is already created, we just enroll the first 5 and warn? 
+                # Better: slice to 5.
+                courses_to_enroll = courses_to_enroll[:5]
+            
+            enrollments = []
+            for cid in courses_to_enroll:
+                course = mongo.db.courses.find_one({'course_id': cid})
+                if course:
+                    enrollments.append({
+                        'student_id': data['student_id'],
+                        'course_id': course['course_id'],
+                        'course_name': course['name'],
+                        'teacher_id': course['teacher_id'],
+                        'marks': None,
+                        'enrolled_at': datetime.utcnow()
+                    })
+            
+            if enrollments:
+                mongo.db.enrollments.insert_many(enrollments)
+
+
     # If role is teacher, create entry in teachers collection
     elif validated_data['role'] == 'teacher':
-        # Use username as teacher_id if not provided (though registration form usually doesn't ask for teacher_id)
-        # For consistency, we'll use the username as teacher_id
         teacher_doc = {
             'teacher_id': validated_data['username'],
             'name': data.get('full_name', validated_data['username']),
             'email': validated_data['email'],
-            'subject': 'General',  # Default
+            'subject': data.get('subject', 'General'), # Capture subject
             'phone': '',
             'qualification': '',
             'created_at': datetime.utcnow(),
@@ -251,7 +290,10 @@ def login():
             'email': user['email'],
             'role': user['role'],
             'full_name': user.get('full_name', ''),
-            'student_id': user.get('student_id', None)
+            'student_id': user.get('student_id', None),
+            'profile_picture': user.get('profile_picture', None),
+            'is_approved': user.get('is_approved', True), # Return approval status
+            'cv_url': user.get('cv_url', None)
         }
     }), 200
 
@@ -386,7 +428,10 @@ def get_current_user():
             'student_id': user.get('student_id', None),
             'created_at': user.get('created_at', None),
             'is_active': user.get('is_active', True),
-            'last_logout': user.get('last_logout', None)
+            'last_logout': user.get('last_logout', None),
+            'profile_picture': user.get('profile_picture', None),
+            'is_approved': user.get('is_approved', True),
+            'cv_url': user.get('cv_url', None)
         }
     }), 200
 
@@ -499,9 +544,14 @@ def update_profile():
     update_data = {}
     if 'full_name' in data:
         update_data['full_name'] = data['full_name']
-    if 'email' in data:
+    
+    # Handle profile picture (Base64 string expected)
+    if 'profile_picture' in data:
+        update_data['profile_picture'] = data['profile_picture']
+
+    if 'email' in data and data['email'] != user['email']:
         existing = mongo.db.users.find_one({'email': data['email']})
-        if existing and str(existing['_id']) != current_user_id:
+        if existing:
             return jsonify({'error': 'Email already in use'}), 409
         update_data['email'] = data['email']
         
@@ -515,12 +565,19 @@ def update_profile():
         {'$set': update_data}
     )
     
+    # Return updated user object
+    updated_user = {
+        'user_id': str(user['_id']),
+        'username': user['username'],
+        'email': update_data.get('email', user['email']),
+        'role': user['role'],
+        'full_name': update_data.get('full_name', user.get('full_name', '')),
+        'profile_picture': update_data.get('profile_picture', user.get('profile_picture'))
+    }
+    
     return jsonify({
         'message': 'Profile updated successfully',
-        'user': {
-            'full_name': update_data.get('full_name', user.get('full_name')),
-            'email': update_data.get('email', user.get('email'))
-        }
+        'user': updated_user
     }), 200
 
 
@@ -528,6 +585,86 @@ def update_profile():
 @jwt_required()
 @handle_exceptions
 def upload_picture():
+    # Imports at the top
+    import os
+    from werkzeug.utils import secure_filename
+    from flask import current_app
+    from bson.objectid import ObjectId
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+        
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+        
+    # File Validation
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    
+    def allowed_file(filename):
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+        
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'Invalid file type. Allowed: png, jpg, jpeg, gif, webp'}), 400
+        
+    # Check file size (e.g. 5MB limit)
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)
+    if size > 5 * 1024 * 1024:
+         return jsonify({'error': 'File too large. Max size is 5MB'}), 400
+
+    # File processing
+    filename = secure_filename(file.filename)
+    unique_filename = f'profile_{get_jwt_identity()}_{int(datetime.utcnow().timestamp())}_{filename}'
+    
+    # Ensure upload folder exists
+    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+    
+    file_path = os.path.join(upload_folder, unique_filename)
+    file.save(file_path)
+    
+    relative_path = f'/static/uploads/{unique_filename}'
+    
+    mongo.db.users.update_one(
+        {'_id': ObjectId(get_jwt_identity())},
+        {'$set': {'profile_picture': relative_path}}
+    )
+    
+    return jsonify({
+        'message': 'Profile picture uploaded successfully',
+        'profile_picture': relative_path
+    }), 200
+
+
+@auth_bp.route('/remove-picture', methods=['POST'])
+@jwt_required()
+@handle_exceptions
+def remove_picture():
+    """
+    Remove profile picture.
+    """
+    from bson.objectid import ObjectId
+    mongo.db.users.update_one(
+        {'_id': ObjectId(get_jwt_identity())},
+        {'$set': {'profile_picture': None}}
+    )
+    
+    return jsonify({
+        'message': 'Profile picture removed successfully'
+    }), 200
+
+
+@auth_bp.route('/upload-cv', methods=['POST'])
+@jwt_required()
+@handle_exceptions
+def upload_cv():
+    """
+    Upload CV for teacher approval.
+    """
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
         
@@ -540,29 +677,88 @@ def upload_picture():
         import os
         from werkzeug.utils import secure_filename
         from flask import current_app
+        from bson.objectid import ObjectId
         
         filename = secure_filename(file.filename)
-        unique_filename = f'{get_jwt_identity()}_{int(datetime.utcnow().timestamp())}_{filename}'
+        unique_filename = f'CV_{get_jwt_identity()}_{int(datetime.utcnow().timestamp())}_{filename}'
         
-        upload_folder = current_app.config.get('UPLOAD_FOLDER')
+        # Ensure cv upload folder exists
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'cvs')
         if not os.path.exists(upload_folder):
             os.makedirs(upload_folder)
             
         file_path = os.path.join(upload_folder, unique_filename)
         file.save(file_path)
         
-        relative_path = f'/static/uploads/{unique_filename}'
+        relative_path = f'/static/uploads/cvs/{unique_filename}'
         
-        from bson.objectid import ObjectId
         mongo.db.users.update_one(
             {'_id': ObjectId(get_jwt_identity())},
-            {'$set': {'profile_picture': relative_path}}
+            {'$set': {'cv_url': relative_path}}
         )
         
         return jsonify({
-            'message': 'Profile picture uploaded successfully',
-            'profile_picture': relative_path
+            'message': 'CV uploaded successfully',
+            'cv_url': relative_path
         }), 200
+
+
+@auth_bp.route('/pending-teachers', methods=['GET'])
+@jwt_required()
+@handle_exceptions
+def get_pending_teachers():
+    """
+    Get all teachers with is_approved=False.
+    Admin only.
+    """
+    claims = get_jwt()
+    if claims.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized', 'message': 'Admin access required'}), 403
+
+    from bson.objectid import ObjectId
+    # Find all users with role 'teacher' and is_approved=False
+    users = list(mongo.db.users.find({'role': 'teacher', 'is_approved': False}))
+    
+    pending = []
+    for u in users:
+         # Get teacher details for subject etc.
+         teacher_profile = mongo.db.teachers.find_one({'teacher_id': u['username']})
+         
+         pending.append({
+             'user_id': str(u['_id']),
+             'username': u['username'],
+             'full_name': u.get('full_name', ''),
+             'email': u['email'],
+             'subject': teacher_profile.get('subject', 'General') if teacher_profile else 'Unknown',
+             'cv_url': u.get('cv_url'),
+             'created_at': u.get('created_at')
+         })
+
+    return jsonify({'pending_teachers': pending}), 200
+
+
+@auth_bp.route('/approve-teacher/<user_id>', methods=['POST'])
+@jwt_required()
+@handle_exceptions
+def approve_teacher(user_id):
+    """
+    Approve a pending teacher.
+    Admin only.
+    """
+    claims = get_jwt()
+    if claims.get('role') != 'admin':
+        return jsonify({'error': 'Unauthorized', 'message': 'Admin access required'}), 403
+
+    from bson.objectid import ObjectId
+    result = mongo.db.users.update_one(
+        {'_id': ObjectId(user_id)},
+        {'$set': {'is_approved': True}}
+    )
+
+    if result.matched_count == 0:
+        return jsonify({'error': 'User not found'}), 404
+
+    return jsonify({'message': 'Teacher approved successfully'}), 200
 
 
 @auth_bp.route('/forgot-password', methods=['POST'])

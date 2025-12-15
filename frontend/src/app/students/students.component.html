@@ -1,0 +1,166 @@
+<div class="content-padding">
+    <div class="page-header">
+        <div class="page-title">
+            <h1>{{ isStudent ? 'My Profile' : 'Students' }}</h1>
+            <span class="page-subtitle">{{ isStudent ? 'View your academic progress' : 'Manage student records'
+                }}</span>
+        </div>
+        <button *ngIf="isAdmin" class="btn-primary" (click)="openAddModal()">
+            <i class="fas fa-plus"></i> Add Student
+        </button>
+    </div>
+
+    <!-- Student Profile View -->
+    <div *ngIf="isStudent && students.length > 0; else listView" class="profile-grid">
+        <!-- Left Card: Profile Info -->
+        <div class="content-card profile-card">
+            <div class="profile-header">
+                <h2>{{ getInitials(students[0].name) }}</h2>
+                <div class="profile-info">
+                    <h3>{{ students[0].name }}</h3>
+                    <p>ID: {{ students[0].student_id }}</p>
+                </div>
+            </div>
+
+            <div class="grade-highlight">
+                <span class="label">Final Grade</span>
+                <div class="big-score" [class]="getGradeColor(students[0].final_grade)">
+                    {{ students[0].final_grade || 0 }}
+                </div>
+            </div>
+
+            <div class="mini-stats">
+                <div class="stat">
+                    <span class="label">Study Time (hrs/week)</span>
+                    <span class="value">{{ students[0].study_time }}</span>
+                </div>
+                <div class="stat">
+                    <span class="label">Absences</span>
+                    <span class="value">{{ students[0].absences }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Card: Performance Prediction -->
+        <div class="content-card prediction-card">
+            <h3>Performance Prediction</h3>
+            <div class="prediction-box">
+                <div class="prediction-icon" [class.success]="students[0].final_grade >= 40"
+                    [class.danger]="students[0].final_grade < 40">
+                    <i class="fas" [class.fa-check-circle]="students[0].final_grade >= 40"
+                        [class.fa-exclamation-triangle]="students[0].final_grade < 40"></i>
+                </div>
+                <div class="prediction-text">
+                    <h4>{{ students[0].final_grade >= 40 ? 'On Track to Pass' : 'At Risk' }}</h4>
+                    <p>{{ students[0].final_grade >= 40 ? "You're doing great! Keep up the good work." : "Consider
+                        increasing your study time." }} Current grade: {{ students[0].final_grade }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Card: Academic Details -->
+        <div class="content-card details-card">
+            <h3>Academic Details</h3>
+            <div class="details-list">
+                <div class="detail-item">
+                    <span>Age</span>
+                    <span class="detail-value">{{ students[0].age }}</span>
+                </div>
+                <div class="detail-item">
+                    <span>Gender</span>
+                    <span class="detail-value">{{ students[0].gender }}</span>
+                </div>
+                <div class="detail-item">
+                    <span>Study Time (hrs/week)</span>
+                    <span class="detail-value">{{ students[0].study_time }}</span>
+                </div>
+                <div class="detail-item">
+                    <span>Absences</span>
+                    <span class="detail-value">{{ students[0].absences }}</span>
+                </div>
+                <div class="detail-item">
+                    <span>Parental Support</span>
+                    <span class="detail-value">{{ students[0].parental_support | titlecase }}</span>
+                </div>
+                <div class="detail-item">
+                    <span>Internet Access</span>
+                    <span class="detail-value">{{ students[0].internet_access ? 'Yes' : 'No' }}</span>
+                </div>
+                <div class="detail-item">
+                    <span>Final Grade</span>
+                    <span class="detail-value bold">{{ students[0].final_grade }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin/Teacher View List -->
+    <ng-template #listView>
+        <div class="content-card">
+            <div class="card-header">
+                <h3>{{ isStudent ? 'My Details' : 'Student List (' + filteredStudents.length + ')' }}</h3>
+                <div class="filters" *ngIf="!isStudent">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search students..." [(ngModel)]="searchQuery">
+                    </div>
+                    <select class="gender-select" [(ngModel)]="selectedGender">
+                        <option value="">All Genders</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Age</th>
+                            <th>Gender</th>
+                            <th>Grade</th>
+                            <th *ngIf="isAdmin || isTeacher">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let student of filteredStudents">
+                            <td>{{student.student_id}}</td>
+                            <td class="font-medium">{{student.name}}</td>
+                            <td>{{student.age || '--'}}</td>
+                            <td>
+                                <span class="gender-badge" [ngClass]="(student.gender || 'other').toLowerCase()">
+                                    {{student.gender || 'Other'}}
+                                </span>
+                            </td>
+                            <td [class]="getGradeColor(student.final_grade || 0)">
+                                {{student.final_grade ?? '--'}}%
+                            </td>
+                            <td *ngIf="isAdmin">
+                                <button class="btn-icon" (click)="openEditModal(student)"><i
+                                        class="fas fa-edit"></i></button>
+                                <button class="btn-icon" (click)="deleteStudent(student.student_id)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                            <td *ngIf="isTeacher">
+                                <button class="btn-primary small" (click)="openGradeModal(student)">
+                                    Assign Grade
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </ng-template>
+</div>
+
+<app-add-student-modal *ngIf="showModal" [student]="selectedStudent" (close)="closeModal()" (saved)="loadStudents()">
+</app-add-student-modal>
+
+<app-assign-grade-modal *ngIf="showGradeModal" [student]="selectedStudent" [enrolledCourses]="currentStudentCourses"
+    (close)="closeGradeModal()" (saved)="closeGradeModal()">
+</app-assign-grade-modal>

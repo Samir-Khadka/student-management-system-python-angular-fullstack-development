@@ -1,0 +1,119 @@
+<div class="dashboard-container">
+    <!-- Top Header (Full Width) -->
+    <header class="top-header">
+        <div class="header-left">
+            <button class="menu-toggle" (click)="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="brand">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Student Management System</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <div class="user-profile" (click)="toggleDropdown()">
+                <div class="avatar">
+                    <img *ngIf="user?.profile_picture" [src]="getProfileUrl(user.profile_picture)" alt="User">
+                    <span *ngIf="!user?.profile_picture" class="avatar-placeholder">
+                        {{ getInitials(user?.full_name || user?.username) }}
+                    </span>
+                </div>
+                <div class="user-info">
+                    <span class="user-name">{{ user?.full_name || user?.username || 'Admin User' }}</span>
+                    <span class="user-role">{{ user?.role || 'Admin' }}</span>
+                </div>
+                <i class="fas fa-chevron-down dropdown-arrow" [class.rotate]="isDropdownOpen"></i>
+            </div>
+
+            <div class="dropdown-menu" [class.show]="isDropdownOpen">
+                <button class="dropdown-item" (click)="openProfile()">
+                    <i class="fas fa-user"></i>
+                    <span>Profile</span>
+                </button>
+                <button class="dropdown-item" (click)="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Pending Approval Banner -->
+    <div *ngIf="user?.role === 'teacher' && user?.is_approved === false" class="alert-banner warning">
+        <div class="alert-content">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>
+                <strong>Action Required: Account Pending Approval</strong>
+                <p>Please upload your CV to verify your qualifications and get approved by an administrator.</p>
+            </div>
+        </div>
+        <div class="alert-actions">
+            <label class="btn-primary small" [class.disabled]="isUploadingCV">
+                <i class="fas fa-upload" [class.fa-spinner]="isUploadingCV" [class.fa-spin]="isUploadingCV"></i>
+                {{ isUploadingCV ? 'Uploading...' : 'Upload CV' }}
+                <input type="file" accept=".pdf,.doc,.docx" (change)="onCVSelected($event)" [disabled]="isUploadingCV"
+                    style="display: none;">
+            </label>
+        </div>
+    </div>
+
+    <div class="layout-body">
+        <!-- Sidebar -->
+        <aside class="sidebar" [class.open]="isSidebarOpen">
+            <nav class="sidebar-nav">
+                <!-- Admin & Teacher Links -->
+                <ng-container *ngIf="['admin', 'teacher'].includes(user?.role)">
+                    <div class="nav-item" routerLink="/dashboard" routerLinkActive="active"
+                        [routerLinkActiveOptions]="{exact: true}">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </div>
+                    <div class="nav-item" routerLink="/dashboard/students" routerLinkActive="active">
+                        <i class="fas fa-user-graduate"></i>
+                        <span>{{ user?.role === 'teacher' ? 'All Students' : 'Students' }}</span>
+                    </div>
+                    <div class="nav-item" *ngIf="user?.role === 'admin'" routerLink="/dashboard/teachers"
+                        routerLinkActive="active">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span>Teachers</span>
+                    </div>
+                    <div class="nav-item" routerLink="/dashboard/courses" routerLinkActive="active">
+                        <i class="fas fa-book"></i>
+                        <span>Courses</span>
+                    </div>
+                    <div class="nav-item" routerLink="/dashboard/analytics" routerLinkActive="active">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </div>
+                </ng-container>
+
+                <!-- Student Links -->
+                <ng-container *ngIf="user?.role === 'student'">
+                    <div class="nav-item" routerLink="/dashboard/students" routerLinkActive="active">
+                        <i class="fas fa-user"></i>
+                        <span>My Profile</span>
+                    </div>
+                    <div class="nav-item" routerLink="/dashboard/grades" routerLinkActive="active">
+                        <i class="fas fa-graduation-cap"></i>
+                        <span>My Grades</span>
+                    </div>
+                    <div class="nav-item" routerLink="/dashboard/courses" routerLinkActive="active">
+                        <i class="fas fa-book"></i>
+                        <span>Browse Courses</span>
+                    </div>
+                </ng-container>
+            </nav>
+        </aside>
+
+        <!-- Main Content (Router Outlet) -->
+        <main class="main-content">
+            <router-outlet></router-outlet>
+        </main>
+    </div>
+
+    <!-- Profile Modal -->
+    <app-profile-modal *ngIf="showProfileModal" [user]="user" (close)="closeProfile()"
+        (userUpdated)="onUserUpdated($event)">
+    </app-profile-modal>
+</div>

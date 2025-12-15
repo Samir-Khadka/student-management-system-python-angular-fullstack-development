@@ -1,0 +1,81 @@
+<div class="screen active">
+    <!-- Landing Navigation -->
+    <nav class="landing-nav">
+        <div class="nav-brand">
+            <i class="fas fa-graduation-cap"></i>
+            <span>Student Management System</span>
+        </div>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#about">About</a>
+            <button class="btn-primary" (click)="navigateToAuth()">Get Started</button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Manage Your Students <span class="gradient-text">Effortlessly</span></h1>
+            <p class="hero-subtitle">A modern, intuitive platform for tracking student performance, analytics, and
+                insights.</p>
+            <div class="hero-actions">
+                <button class="btn-primary btn-lg" (click)="navigateToAuth()">
+                    <span>Get Started</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <button class="btn-secondary btn-lg">
+                    <span>Learn More</span>
+                </button>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="floating-card card-1">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics</span>
+            </div>
+            <div class="floating-card card-2">
+                <i class="fas fa-users"></i>
+                <span>Students</span>
+            </div>
+            <div class="floating-card card-3">
+                <i class="fas fa-trophy"></i>
+                <span>Performance</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <h2 class="section-title">Powerful Features</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <h3>Student Management</h3>
+                <p>Complete student profile management with grades, attendance, and performance tracking.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <h3>Advanced Analytics</h3>
+                <p>Powerful insights and visualizations to understand student performance trends.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h3>AI Predictions</h3>
+                <p>Intelligent predictions to identify at-risk students and intervention opportunities.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3>Role-Based Access</h3>
+                <p>Secure access control for admins, teachers, and students with customized views.</p>
+            </div>
+        </div>
+    </section>
+</div>

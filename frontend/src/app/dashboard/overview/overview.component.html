@@ -1,0 +1,107 @@
+<div class="content-padding">
+    <div class="page-header">
+        <div class="page-title">
+            <h1>Class Overview</h1>
+            <span class="page-subtitle">Monitor student performance</span>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <!-- Total Students -->
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #a855f7;">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-value">{{ dashboardData.totalStudents }}</span>
+                <span class="stat-label">Total Students</span>
+            </div>
+        </div>
+
+        <!-- Class Average -->
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #10b981;">
+                <i class="fas fa-trophy"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-value">{{ dashboardData.averageGrade }}</span>
+                <span class="stat-label">Class Average</span>
+            </div>
+        </div>
+
+        <!-- Need Attention -->
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #ef4444;">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-value">{{ dashboardData.atRiskStudents }}</span>
+                <span class="stat-label">Need Attention</span>
+            </div>
+        </div>
+
+        <!-- Top Performers -->
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #3b82f6;">
+                <i class="fas fa-star"></i>
+            </div>
+            <div class="stat-details">
+                <span class="stat-value">{{ topPerformers.length }}</span>
+                <span class="stat-label">Top Performers</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts & Lists Grid -->
+    <div class="dashboard-grid">
+        <!-- Performance Trends Chart -->
+        <div class="content-card large-card">
+            <div class="card-header">
+                <h3>Class Performance Trends</h3>
+            </div>
+            <div class="chart-container">
+                <!-- Y Axis Labels -->
+                <div class="y-axis">
+                    <span>40</span>
+                    <span>30</span>
+                    <span>20</span>
+                    <span>10</span>
+                    <span>0</span>
+                </div>
+
+                <!-- Bars -->
+                <div class="bars-area">
+                    <div class="bar-group" *ngFor="let count of gradeDistribution; let i = index">
+                        <div class="bar" [style.height.%]="(count / getMaxDistribution()) * 100">
+                            <div class="tooltip">{{count}} Students</div>
+                        </div>
+                        <span class="x-label">
+                            {{ i === 0 ? '0-39' : i === 1 ? '40-49' : i === 2 ? '50-59' :
+                            i === 3 ? '60-69' : i === 4 ? '70-79' : '80-100' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Students Needing Attention -->
+        <div class="content-card">
+            <div class="card-header">
+                <h3>Students Needing Attention</h3>
+            </div>
+            <div class="attention-list">
+                <div class="attention-item" *ngFor="let student of studentsNeedingAttention">
+                    <div class="student-info">
+                        <span class="name">{{ student.name }}</span>
+                        <span class="sub-text">{{ student.student_id }} - Grade: {{ student.final_grade }}</span>
+                    </div>
+                    <span class="risk-badge">At Risk</span>
+                </div>
+                <div class="empty-state" *ngIf="studentsNeedingAttention.length === 0">
+                    <p>No students currently at risk.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
