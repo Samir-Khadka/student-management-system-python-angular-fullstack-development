@@ -85,8 +85,8 @@ Ensure you have the following installed:
 #### 1️⃣ Clone the Repository
 
 ```bash
-git clone https://github.com/Samir-Khadka/Student-Management-System.git
-cd Student-Management-System
+git clone https://github.com/Samir-Khadka/student-management-system-python-angular-fullstack-development.git
+cd student-management-system-python-angular-fullstack-development
 ```
 
 #### 2️⃣ Backend Setup
@@ -201,7 +201,7 @@ After running seed scripts (optional):
 ## 📁 Project Structure
 
 ```
-Student-Management-System/
+student-management-system-python-angular-fullstack-development/
 ├── backend/                    # Flask backend
 │   ├── app/
 │   │   ├── routes/            # API endpoints
